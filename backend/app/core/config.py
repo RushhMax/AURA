@@ -18,18 +18,18 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 días
 
     # ─── Base de datos ────────────────────────────────────────────────────────
-    # Railway provee DATABASE_URL directamente; si no, se construye desde partes
-    DATABASE_URL: Optional[str] = None
+    # POSTGRES_* se definen primero para que el validator de DATABASE_URL los tenga
     POSTGRES_SERVER: str = "db"
     POSTGRES_USER: str = "aura_user"
     POSTGRES_PASSWORD: str = "aura_pass"
     POSTGRES_DB: str = "aura_db"
     POSTGRES_PORT: str = "5432"
+    # Railway inyecta DATABASE_URL directamente; si no, se construye desde partes
+    DATABASE_URL: Optional[str] = None
 
     @validator("DATABASE_URL", pre=True, always=True)
     def assemble_db_url(cls, v, values):
         if v:
-            # Railway usa postgres://, SQLAlchemy necesita postgresql://
             return v.replace("postgres://", "postgresql://", 1)
         return (
             f"postgresql://{values.get('POSTGRES_USER')}:{values.get('POSTGRES_PASSWORD')}"
