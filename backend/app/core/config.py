@@ -1,9 +1,9 @@
 """
 Configuración central de AURA usando pydantic-settings
 """
-from typing import List, Union
+from typing import List, Optional, Union
 from pydantic_settings import BaseSettings
-from pydantic import AnyHttpUrl, validator
+from pydantic import validator
 
 
 class Settings(BaseSettings):
@@ -18,17 +18,22 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 días
 
     # ─── Base de datos ────────────────────────────────────────────────────────
+    # Railway provee DATABASE_URL directamente; si no, se construye desde partes
+    DATABASE_URL: Optional[str] = None
     POSTGRES_SERVER: str = "db"
     POSTGRES_USER: str = "aura_user"
     POSTGRES_PASSWORD: str = "aura_pass"
     POSTGRES_DB: str = "aura_db"
     POSTGRES_PORT: str = "5432"
 
-    @property
-    def DATABASE_URL(self) -> str:
+    @validator("DATABASE_URL", pre=True, always=True)
+    def assemble_db_url(cls, v, values):
+        if v:
+            # Railway usa postgres://, SQLAlchemy necesita postgresql://
+            return v.replace("postgres://", "postgresql://", 1)
         return (
-            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-            f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            f"postgresql://{values.get('POSTGRES_USER')}:{values.get('POSTGRES_PASSWORD')}"
+            f"@{values.get('POSTGRES_SERVER')}:{values.get('POSTGRES_PORT')}/{values.get('POSTGRES_DB')}"
         )
 
     # ─── CORS ─────────────────────────────────────────────────────────────────
@@ -37,6 +42,8 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "capacitor://localhost",
+        "ionic://localhost",
     ]
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
